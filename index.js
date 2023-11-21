@@ -77,9 +77,12 @@ async function getNewConversations() {
           );
           let result = await addSubscription(messageParts[1], sender);
           console.log(result.status);
-          let responseToSender = `Successfully subscribed to\n\n${messageParts[1]} (${result.channelName})`;
+          let responseToSender = `Successfully subscribed to\n\n${result.ucid} (${result.channelName})`;
           if (result.status !== 204) {
-            responseToSender = `Unable to subscribe to ${messageParts[1]}.\n\nYou must provide a valid channelId in order to subscribe.\n\nIf you only have the channel name, you can use the service on https://commentpicker.com/youtube-channel-id.php to find the channel ID.`;
+            responseToSender = `Unable to subscribe to ${messageParts[1]}.`;
+            if (result.status === 99) {
+              responseToSender += `\n\nThe Channel-ID-Service likely provided a fake ChannelID and I wasn't able to determine the correct one automatically.`;
+            }
           }
           mastodonInstance.post("statuses", {
             status: `@${sender} ${responseToSender}`,
@@ -192,8 +195,27 @@ async function getFeed() {
   await metadata.save();
 }
 
-async function addSubscription(ucid, username) {
-  console.log("Adding subscription to", ucid);
+async function addSubscription(channel, username) {
+  console.log("Adding subscription to", channel);
+
+  // Find out if channel is CHANNELID (starting with UC) or CHANNELNAME. If CHANNELNAME starts with @, remove it
+  let ucid = channel;
+  let channelName = "";
+  if (!channel.startsWith("UC")) {
+    // find ucid for channelname
+    console.log("Finding ucid for channel name", channel);
+
+    if (channel.startsWith("@")) channel = channel.substring(1);
+
+    let youtubeResponse = await fetch(
+      `https://www.googleapis.com/youtube/v3/search?part=id,snippet&maxResults=1&type=channel&q=${channel}&key=${process.env.YOUTUBE_API_KEY}`
+    );
+    console.log(youtubeResponse.status, youtubeResponse.statusText);
+    let youtubeData = await youtubeResponse.json();
+    ucid = youtubeData.items[0].id.channelId;
+    channelName = youtubeData.items[0].snippet.channelTitle;
+    console.log("Found ucid:", ucid);
+  }
 
   let response = await fetch(
     `https://${invidiousInstance}/${invidiousSubscriptionsEndpoint}/${ucid}`,
@@ -216,11 +238,62 @@ async function addSubscription(ucid, username) {
     if (!subscription) {
       // console.log(invRespData);
 
-      subscription = new Subscription();
-      subscription.ucid = ucid;
-      subscription.channelName = invRespData[0].author;
-      subscription.subscribedUsernames = [username];
-      await subscription.save();
+      // if invRespData is empty, then a fake UCID was given (e.g. @adriansdigitalbasement != UC4AN7B71GLxDnmnQDzcd2vw)
+      // get info from youtube
+      if (!invRespData.length) {
+        if (!channelName) {
+          console.log(
+            "Found potential fake UCID .... trying to fetch relevant information from youtube"
+          );
+          let fakecheckResponse = await fetch(
+            `https://www.googleapis.com/youtube/v3/search?part=id,snippet&maxResults=1&type=channel&q=${ucid}&key=${process.env.YOUTUBE_API_KEY}`
+          );
+          let fakecheckData = await fakecheckResponse.json();
+          let fakeTitle = fakecheckData.items[0].snippet.channelTitle;
+
+          // is @ contained in channel title? Then filter the part after it
+          let filtered = fakeTitle.match(/\@([^\s]*)/)[1];
+          if (filtered) {
+            fakecheckResponse = await fetch(
+              `https://www.googleapis.com/youtube/v3/search?part=id,snippet&maxResults=1&type=channel&q=${filtered}&key=${process.env.YOUTUBE_API_KEY}`
+            );
+            fakecheckData = await fakecheckResponse.json();
+            ucid = fakecheckData.items[0].id.channelId;
+            channelName = fakecheckData.items[0].snippet.channelTitle;
+            console.log("Found new ucid:", ucid);
+
+            subscription = await Subscription.findOne({ ucid });
+            if (!subscription) {
+              subscription = new Subscription();
+              subscription.ucid = ucid;
+              subscription.channelName = channelName;
+              subscription.subscribedUsernames = [username];
+              await subscription.save();
+            } else {
+              if (!subscription.subscribedUsernames.includes(username)) {
+                subscription.subscribedUsernames = [
+                  ...subscription.subscribedUsernames,
+                  username,
+                ];
+                await subscription.save();
+              }
+            }
+          } else {
+            return {
+              status: 99,
+              channelName: "",
+              ucid: ucid,
+            };
+          }
+        }
+      } else {
+        channelName = invRespData[0].author;
+        subscription = new Subscription();
+        subscription.ucid = ucid;
+        subscription.channelName = channelName;
+        subscription.subscribedUsernames = [username];
+        await subscription.save();
+      }
     } else {
       if (!subscription.subscribedUsernames.includes(username)) {
         subscription.subscribedUsernames = [
@@ -248,7 +321,8 @@ async function addSubscription(ucid, username) {
 
   return {
     status: response.status,
-    channelName: invRespData ? invRespData[0].author : undefined,
+    channelName: channelName,
+    ucid: ucid,
   };
 }
 
