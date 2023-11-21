@@ -298,6 +298,7 @@ async function addSubscription(channel, username) {
         await subscription.save();
       }
     } else {
+      channelName = subscription.channelName;
       if (!subscription.subscribedUsernames.includes(username)) {
         subscription.subscribedUsernames = [
           ...subscription.subscribedUsernames,
