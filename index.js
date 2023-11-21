@@ -6,6 +6,10 @@ import { User } from "./model/user.js";
 import { Subscription } from "./model/subscription.js";
 import { Metadata } from "./model/metadata.js";
 
+// pseudo web service for render.com
+import express from "express";
+const app = express();
+
 import "dotenv/config";
 
 const invidiousInstance = process.env.INVIDIOUS_INSTANCE;
@@ -396,3 +400,7 @@ async function removeSubscription(ucid, username) {
 
   return result;
 }
+
+app.listen(process.env.PORT || 9999, () => {
+  console.log("Dummy service listening on port ", process.env.PORT || 9999);
+});
