@@ -153,7 +153,7 @@ async function getFeed() {
   let currentTimestampInSec = Math.floor(Date.now() / 1000);
 
   let response = await fetch(
-    `https://${invidiousInstance}/${invidiousFeedEndpoint}`,
+    `https://${invidiousInstance}/${invidiousFeedEndpoint}?max_results=150`,
     {
       headers: {
         Authorization: `Bearer ${invidiousToken}`,
@@ -161,7 +161,10 @@ async function getFeed() {
     }
   );
   let responseData = await response.json();
+  console.log(responseData.notifications.length, "Notifications found in feed");
   console.log(responseData.videos.length, "Videos found in feed");
+
+  let allVideos = [...responseData.notifications, ...responseData.videos];
 
   let metadata = await Metadata.findOne({});
   let lastchecked = currentTimestampInSec;
@@ -169,7 +172,7 @@ async function getFeed() {
     lastchecked = metadata.lastchecked;
   }
 
-  for (let video of responseData.videos) {
+  for (let video of allVideos) {
     if (video.published >= lastchecked) {
       // found video published since last checked
       // report video to all users subscribed to the channel
