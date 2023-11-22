@@ -123,6 +123,17 @@ async function getNewConversations() {
           ) {
             responseMessage = "You are currently subscribed to\n\n";
             for (let channel of currentSubscriptions.subscribedTo) {
+              // check if length>500 after adding next subscription, then split it up!
+              let checkmessage =
+                responseMessage + `${channel.ucid}\n${channel.channelName}\n\n`;
+              if (checkmessage.length > 500) {
+                mastodonInstance.post("statuses", {
+                  status: `@${sender} ${responseMessage}`,
+                  in_reply_to_id: origStatusId,
+                  visibility: "direct",
+                });
+                responseMessage = "You are currently subscribed to\n\n";
+              }
               responseMessage += `${channel.ucid}\n${channel.channelName}\n\n`;
             }
           }
@@ -153,7 +164,7 @@ async function getFeed() {
   let currentTimestampInSec = Math.floor(Date.now() / 1000);
 
   let response = await fetch(
-    `https://${invidiousInstance}/${invidiousFeedEndpoint}?max_results=150`,
+    `https://${invidiousInstance}/${invidiousFeedEndpoint}?max_results=1000`,
     {
       headers: {
         Authorization: `Bearer ${invidiousToken}`,
