@@ -161,7 +161,7 @@ async function getFeed() {
   console.log("Grabbing feed from Invidious ....");
   console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
-  let currentTimestampInSec = Math.floor(Date.now() / 1000);
+  //let currentTimestampInSec = Math.floor(Date.now() / 1000);
 
   let response = await fetch(
     `https://${invidiousInstance}/${invidiousFeedEndpoint}?max_results=1000`,
@@ -178,13 +178,14 @@ async function getFeed() {
   let allVideos = [...responseData.notifications, ...responseData.videos];
 
   let metadata = await Metadata.findOne({});
-  let lastchecked = currentTimestampInSec;
+  //let lastchecked = currentTimestampInSec;
+  let lastchecked = allVideos[0].published;
   if (metadata && metadata.lastchecked) {
     lastchecked = metadata.lastchecked;
   }
 
   for (let video of allVideos) {
-    if (video.published >= lastchecked) {
+    if (video.published > lastchecked) {
       // found video published since last checked
       // report video to all users subscribed to the channel
 
@@ -205,7 +206,7 @@ async function getFeed() {
     metadata = new Metadata();
     console.log("METADATA created!");
   }
-  metadata.lastchecked = currentTimestampInSec;
+  metadata.lastchecked = allVideos[0].published;
   await metadata.save();
 }
 
