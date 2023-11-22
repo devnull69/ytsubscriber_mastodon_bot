@@ -37,9 +37,9 @@ mongoose.connection.on("error", (err) => {
 });
 
 async function getNewConversations() {
-  console.log("-----------------------------------------");
-  console.log("checking incoming messages ....");
-  console.log("-----------------------------------------");
+  console.log("----------------------------------------------");
+  console.log("checking incoming Mastodon direc messages ....");
+  console.log("----------------------------------------------");
 
   let conversations = await mastodonInstance.get("conversations");
 
@@ -142,12 +142,13 @@ async function getNewConversations() {
       mastodonInstance.post(`conversations/${id}/read`);
     }
   }
+  console.log("-------DONE-------");
 }
 
 async function getFeed() {
-  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-  console.log("Grabbing feed from invidious ....");
-  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  console.log("Grabbing feed from Invidious ....");
+  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
   let currentTimestampInSec = Math.floor(Date.now() / 1000);
 
