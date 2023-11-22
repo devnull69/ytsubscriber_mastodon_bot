@@ -37,9 +37,9 @@ mongoose.connection.on("error", (err) => {
 });
 
 async function getNewConversations() {
-  console.log("----------------------------------------------");
-  console.log("checking incoming Mastodon direc messages ....");
-  console.log("----------------------------------------------");
+  console.log("-----------------------------------------------");
+  console.log("checking incoming Mastodon direct messages ....");
+  console.log("-----------------------------------------------");
 
   let conversations = await mastodonInstance.get("conversations");
 
