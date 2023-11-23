@@ -177,6 +177,13 @@ async function getFeed() {
 
   let allVideos = [...responseData.notifications, ...responseData.videos];
 
+  // sort notifications together with videos descending from published time
+  allVideos.sort((a, b) => {
+    if (a.published < b.published) return -1;
+    if (a.published > b.published) return 1;
+    return 0;
+  });
+
   let metadata = await Metadata.findOne({});
   //let lastchecked = currentTimestampInSec;
   let lastchecked = allVideos[0].published;
