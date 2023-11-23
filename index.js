@@ -179,8 +179,8 @@ async function getFeed() {
 
   // sort notifications together with videos descending from published time
   allVideos.sort((a, b) => {
-    if (a.published < b.published) return -1;
-    if (a.published > b.published) return 1;
+    if (a.published > b.published) return -1;
+    if (a.published < b.published) return 1;
     return 0;
   });
 
