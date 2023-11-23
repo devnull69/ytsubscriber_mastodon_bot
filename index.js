@@ -16,7 +16,7 @@ const invidiousToken = process.env.INVIDIOUS_TOKEN;
 
 let mastodonInstance = new Mastodon({
   access_token: process.env.MASTODON_ACCESS_TOKEN,
-  timeout_ms: 60 * 1000, // optional HTTP request timeout to apply to all requests.
+  timeout_ms: 10 * 1000, // optional HTTP request timeout to apply to all requests.
   api_url: `https://${process.env.MASTODON_BOT_INSTANCE}/api/v1/`, // optional, defaults to https://mastodon.social/api/v1/
 });
 
