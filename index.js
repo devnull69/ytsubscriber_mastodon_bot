@@ -144,6 +144,27 @@ async function getNewConversations() {
           });
           console.log("Sent subscription list to", sender);
           break;
+        case "instance":
+          console.log(
+            "INSTANCE config command received from",
+            sender,
+            "change to",
+            messageParts[1]
+          );
+          if (messageParts[1]) {
+            let resultat = await changeInstance(messageParts[1], sender);
+
+            let finalMessage = "Successfully set instance to";
+            if (resultat) finalMessage = "Failed setting instance to";
+
+            mastodonInstance.post("statuses", {
+              status: `@${sender} ${finalMessage} ${messageParts[1]}`,
+              in_reply_to_id: origStatusId,
+              visibility: "direct",
+            });
+          }
+          console.log("Sent instance config response to", sender);
+          break;
         default:
           console.log("UNKNOWN COMMAND received from", sender);
       }
@@ -199,8 +220,31 @@ async function getFeed() {
       let subscription = await Subscription.findOne({ ucid: video.authorId });
 
       for (let subscribedUsername of subscription.subscribedUsernames) {
+        // new: get user information (instance setting)
+        let subscribedUser = await User.findOne({
+          username: subscribedUsername,
+        });
+
+        let instance = INVIDIOUS_INSTANCE;
+
+        switch (subscribedUser.instance) {
+          case "redirect":
+            instance = "redirect.invidious.io";
+            break;
+          case "random":
+            let apiResponse = await fetch(
+              "https://api.invidious.io/instances.json?sort_by=type,health"
+            );
+            let apiJson = await apiResponse.json();
+            let rndIdx = Math.floor(Math.random() * 20);
+            instance = apiJson[rndIdx][0];
+            break;
+          default:
+            instance = INVIDIOUS_INSTANCE;
+        }
+
         mastodonInstance.post("statuses", {
-          status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
+          status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
           visibility: "direct",
         });
         console.log("Sent new video message to", subscribedUsername);
@@ -414,4 +458,24 @@ async function removeSubscription(ucid, username) {
   }
 
   return result;
+}
+
+async function changeInstance(instance, username) {
+  let user = await User.findOne({ username });
+
+  if (!user) return 99;
+
+  switch (instance) {
+    case "redirect":
+    case "random":
+    case "fixed":
+      user.instance = instance;
+
+      await user.save();
+      break;
+    default:
+      return 99;
+  }
+
+  return 0;
 }

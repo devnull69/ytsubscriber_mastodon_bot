@@ -9,6 +9,7 @@ const userSchema = new mongoose.Schema(
         ref: "Subscription",
       },
     ],
+    instance: { type: String, required: true, default: "fixed" },
   },
   { collection: "users" }
 );
