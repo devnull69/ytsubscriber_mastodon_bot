@@ -225,7 +225,7 @@ async function getFeed() {
           username: subscribedUsername,
         });
 
-        let instance = INVIDIOUS_INSTANCE;
+        let instance = invidiousInstance;
 
         switch (subscribedUser.instance) {
           case "redirect":
@@ -240,7 +240,7 @@ async function getFeed() {
             instance = apiJson[rndIdx][0];
             break;
           default:
-            instance = INVIDIOUS_INSTANCE;
+            instance = invidiousInstance;
         }
 
         mastodonInstance.post("statuses", {
