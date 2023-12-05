@@ -121,7 +121,7 @@ async function getNewConversations() {
             currentSubscriptions &&
             currentSubscriptions.subscribedTo.length
           ) {
-            responseMessage = "You are currently subscribed to\n\n";
+            responseMessage = `Your instance setting is: ${currentSubscriptions.instance}\n\nYou are currently subscribed to\n\n`;
             for (let channel of currentSubscriptions.subscribedTo) {
               // check if length>500 after adding next subscription, then split it up!
               let checkmessage =
@@ -132,7 +132,7 @@ async function getNewConversations() {
                   in_reply_to_id: origStatusId,
                   visibility: "direct",
                 });
-                responseMessage = "You are currently subscribed to\n\n";
+                responseMessage = "You are also subscribed to\n\n";
               }
               responseMessage += `${channel.ucid}\n${channel.channelName}\n\n`;
             }
