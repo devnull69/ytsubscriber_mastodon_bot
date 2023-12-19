@@ -216,12 +216,6 @@ async function sendMessageToSubscribers(video, metadata) {
       visibility: "direct",
     });
     console.log("Sent new video message to", subscribedUsername);
-
-    let lasttwenty = metadata.lasttwenty;
-    lasttwenty.unshift(video.videoId);
-    lasttwenty.pop();
-    metadata.lasttwenty = lasttwenty;
-    await metadata.save();
   }
 }
 
@@ -272,14 +266,18 @@ async function getFeed() {
   }
 
   // check last twenty
-  for (let i = 0; i < 20; i++) {
+  let lasttwenty = metadata.lasttwenty;
+  for (let i = 0; i < 10; i++) {
     let video = allVideos[i];
-    if (!metadata.lasttwenty.includes(video.videoId)) {
+    if (!lasttwenty.includes(video.videoId)) {
       sendMessageToSubscribers(video, metadata);
       mastodonInstance.post("statuses", {
         status: `@devnull69@ruhr.social\n\nOut of order video detected, user was informed!\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
         visibility: "direct",
       });
+      lasttwenty.unshift(video.videoId);
+      lasttwenty.pop();
+      metadata.lasttwenty = lasttwenty;
     }
   }
 
