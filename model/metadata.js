@@ -4,6 +4,7 @@ const metadataSchema = new mongoose.Schema(
   {
     lastchecked: { type: Number, required: true, unique: true },
     lasttwenty: { type: [String] },
+    //    lasttwentytest: { type: [String] },
   },
   { collection: "metadata" }
 );

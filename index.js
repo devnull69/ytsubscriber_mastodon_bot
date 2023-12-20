@@ -253,6 +253,43 @@ async function getFeed() {
 
   let metadata = await Metadata.findOne({});
 
+  // metadata.lasttwentytest = [
+  //   "nJg4dOO2P-E",
+  //   "Wksz1DnJ2VM",
+  //   "4QgcZzpJK2s",
+  //   "D730YRUqbKQ",
+  //   "rXd_eLPMv1U",
+  //   "JOaW9NQd1lI",
+  //   "EyDV5XLfagg",
+  //   "vpAXHtPK8nA",
+  //   "KV8U1cCo7UA",
+  //   "qU1EW4ED-QU",
+  //   "UBkWHimASgI",
+  //   "hUp3lVKrWt8",
+  //   "HP4ObKlCe6w",
+  //   "x5AvRLp-RsU",
+  //   "5jUYkDDRALg",
+  //   "lQlt07xS7pk",
+  //   "GqbaQKIdi3c",
+  //   "psGA9Ovw2r4",
+  //   "L6btUQ8mDZo",
+  //   "TsYeBS6v4r8",
+  // ];
+
+  // let difference = false;
+  // for (let lasttwenty of metadata.lasttwentytest) {
+  //   if (!metadata.lasttwenty.includes(lasttwenty)) {
+  //     difference = true;
+  //     break;
+  //   }
+  // }
+  // if (difference) {
+  //   metadata.lasttwenty = metadata.lasttwentytest;
+  //   console.log("overwritten lasttwenty on server");
+  // }
+
+  console.log("last checked video", allVideos[0].published);
+
   //let lastchecked = currentTimestampInSec;
   let lastchecked = allVideos[0].published;
   if (metadata && metadata.lastchecked) {
@@ -260,12 +297,11 @@ async function getFeed() {
   }
 
   let lasttwenty = metadata.lasttwenty;
+
   for (let video of allVideos) {
     if (video.published > lastchecked) {
       sendMessageToSubscribers(video, metadata);
-      lasttwenty.unshift(video.videoId);
-      lasttwenty.pop();
-      metadata.lasttwenty = lasttwenty;
+      lasttwenty.push(video.videoId);
     }
   }
 
@@ -279,9 +315,6 @@ async function getFeed() {
         status: `@devnull69@ruhr.social\n\nOut of order video detected, user was informed!\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
         visibility: "direct",
       });
-      lasttwenty.unshift(video.videoId);
-      lasttwenty.pop();
-      metadata.lasttwenty = lasttwenty;
     }
   }
 
@@ -291,6 +324,13 @@ async function getFeed() {
     console.log("METADATA created!");
   }
   metadata.lastchecked = allVideos[0].published;
+
+  //update last twenty
+  lasttwenty = [];
+  for (let i = 0; i < 20; i++) {
+    lasttwenty.push(allVideos[i].videoId);
+  }
+  metadata.lasttwenty = lasttwenty;
   await metadata.save();
 }
 
