@@ -311,10 +311,10 @@ async function getFeed() {
     let video = allVideos[i];
     if (!lasttwenty.includes(video.videoId)) {
       sendMessageToSubscribers(video, metadata);
-      mastodonInstance.post("statuses", {
-        status: `@devnull69@ruhr.social\n\nOut of order video detected, user was informed!\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
-        visibility: "direct",
-      });
+      // mastodonInstance.post("statuses", {
+      //   status: `@devnull69@ruhr.social\n\nOut of order video detected, user was informed!\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
+      //   visibility: "direct",
+      // });
     }
   }
 
