@@ -271,6 +271,7 @@ async function getFeed() {
 
   // check last twenty
   for (let i = 0; i < 10; i++) {
+    // what
     let video = allVideos[i];
     if (!lasttwenty.includes(video.videoId)) {
       sendMessageToSubscribers(video, metadata);
