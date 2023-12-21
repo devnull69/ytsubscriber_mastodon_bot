@@ -431,7 +431,7 @@ async function addSubscription(channel, username) {
               subscription = new Subscription();
               subscription.ucid = ucid;
               subscription.channelName = channelName;
-              subscription.subscribedUsernames = [username];
+              //subscription.subscribedUsernames = [username];
               subscription.subscribedUsers = [
                 {
                   username,
@@ -440,11 +440,15 @@ async function addSubscription(channel, username) {
               ];
               await subscription.save();
             } else {
-              if (!subscription.subscribedUsernames.includes(username)) {
-                subscription.subscribedUsernames = [
-                  ...subscription.subscribedUsernames,
-                  username,
-                ];
+              if (
+                !subscription.subscribedUsers.find(
+                  (user) => user.username === username
+                )
+              ) {
+                // subscription.subscribedUsernames = [
+                //   ...subscription.subscribedUsernames,
+                //   username,
+                // ];
                 subscription.subscribedUsers = [
                   ...subscription.subscribedUsers,
                   {
@@ -468,7 +472,7 @@ async function addSubscription(channel, username) {
         subscription = new Subscription();
         subscription.ucid = ucid;
         subscription.channelName = channelName;
-        subscription.subscribedUsernames = [username];
+        //subscription.subscribedUsernames = [username];
         subscription.subscribedUsers = [
           {
             username,
@@ -479,11 +483,13 @@ async function addSubscription(channel, username) {
       }
     } else {
       channelName = subscription.channelName;
-      if (!subscription.subscribedUsernames.includes(username)) {
-        subscription.subscribedUsernames = [
-          ...subscription.subscribedUsernames,
-          username,
-        ];
+      if (
+        !subscription.subscribedUsers.find((user) => user.username === username)
+      ) {
+        // subscription.subscribedUsernames = [
+        //   ...subscription.subscribedUsernames,
+        //   username,
+        // ];
         subscription.subscribedUsers = [
           ...subscription.subscribedUsers,
           {
@@ -548,16 +554,16 @@ async function removeSubscription(ucid, username) {
   // if it was the last user, remove subscription and unsubscribe on invidious
 
   if (subobj) {
-    let users = subobj.subscribedUsernames;
+    //let users = subobj.subscribedUsernames;
     let newusers = subobj.subscribedUsers;
-    let idx = users.indexOf(username);
+    //let idx = users.indexOf(username);
     let newidx = newusers.findIndex((user) => user.username === username);
-    if (idx !== -1) {
-      users.splice(idx, 1);
+    if (newidx !== -1) {
+      //users.splice(idx, 1);
       newusers.splice(newidx, 1);
-      if (users.length) {
+      if (newusers.length) {
         // write back users
-        subobj.subscribedUsernames = users;
+        //subobj.subscribedUsernames = users;
         subobj.subscribedUsers = newusers;
         await subobj.save();
       } else {
