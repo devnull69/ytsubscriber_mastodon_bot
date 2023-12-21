@@ -1,10 +1,16 @@
 import mongoose from "mongoose";
 
+const subscribedUserSchema = new mongoose.Schema({
+  username: String,
+  subscribedAt: Number,
+});
+
 const subscriptionSchema = new mongoose.Schema(
   {
     ucid: { type: String, required: true, unique: true },
-    channelName: { type: String },
-    subscribedUsernames: { type: [String], required: true },
+    channelName: String,
+    subscribedUsers: [subscribedUserSchema],
+    subscribedUsernames: [String],
   },
   { collection: "subscriptions" }
 );

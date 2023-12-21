@@ -25,6 +25,28 @@ mongoose.connect(mongoDBConnect);
 
 mongoose.connection.on("connected", async () => {
   console.log("DB connection active (" + mongoDBConnect + ")");
+
+  // TODO: possible migration?
+  // from subscription.subscribedUsernames to subscription.subscribedUsers
+  let subscriptions = await Subscription.find({});
+  for (let sub of subscriptions) {
+    let changed = false;
+    for (let username of sub.subscribedUsernames) {
+      if (!sub.subscribedUsers.find((user) => user.username === username)) {
+        changed = true;
+        sub.subscribedUsers.push({
+          username,
+          subscribedAt: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60, // 2 weeks ago per default
+        });
+        console.log("migration necessary for", sub.ucid, username);
+      }
+    }
+    if (changed) {
+      await sub.save();
+      console.log("MIGRATION changes saved!");
+    }
+  }
+
   await getFeed();
   setInterval(getFeed, 30 * 60 * 1000);
 
@@ -187,7 +209,8 @@ async function sendMessageToSubscribers(video, metadata) {
     ucid: video.authorId,
   });
 
-  for (let subscribedUsername of subscription.subscribedUsernames) {
+  for (let subscribed of subscription.subscribedUsers) {
+    let subscribedUsername = subscribed.username;
     // new: get user information (instance setting)
     let subscribedUser = await User.findOne({
       username: subscribedUsername,
@@ -211,11 +234,13 @@ async function sendMessageToSubscribers(video, metadata) {
         instance = invidiousInstance;
     }
 
-    mastodonInstance.post("statuses", {
-      status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
-      visibility: "direct",
-    });
-    console.log("Sent new video message to", subscribedUsername);
+    if (video.published >= subscribed.subscribedAt) {
+      mastodonInstance.post("statuses", {
+        status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
+        visibility: "direct",
+      });
+      console.log("Sent new video message to", subscribedUsername);
+    }
   }
 }
 
@@ -407,12 +432,25 @@ async function addSubscription(channel, username) {
               subscription.ucid = ucid;
               subscription.channelName = channelName;
               subscription.subscribedUsernames = [username];
+              subscription.subscribedUsers = [
+                {
+                  username,
+                  subscribedAt: Math.floor(Date.now() / 1000),
+                },
+              ];
               await subscription.save();
             } else {
               if (!subscription.subscribedUsernames.includes(username)) {
                 subscription.subscribedUsernames = [
                   ...subscription.subscribedUsernames,
                   username,
+                ];
+                subscription.subscribedUsers = [
+                  ...subscription.subscribedUsers,
+                  {
+                    username,
+                    subscribedAt: Math.floor(Date.now() / 1000),
+                  },
                 ];
                 await subscription.save();
               }
@@ -431,6 +469,12 @@ async function addSubscription(channel, username) {
         subscription.ucid = ucid;
         subscription.channelName = channelName;
         subscription.subscribedUsernames = [username];
+        subscription.subscribedUsers = [
+          {
+            username,
+            subscribedAt: Math.floor(Date.now() / 1000),
+          },
+        ];
         await subscription.save();
       }
     } else {
@@ -439,6 +483,13 @@ async function addSubscription(channel, username) {
         subscription.subscribedUsernames = [
           ...subscription.subscribedUsernames,
           username,
+        ];
+        subscription.subscribedUsers = [
+          ...subscription.subscribedUsers,
+          {
+            username,
+            subscribedAt: Math.floor(Date.now() / 1000),
+          },
         ];
         await subscription.save();
       }
@@ -498,12 +549,16 @@ async function removeSubscription(ucid, username) {
 
   if (subobj) {
     let users = subobj.subscribedUsernames;
+    let newusers = subobj.subscribedUsers;
     let idx = users.indexOf(username);
+    let newidx = newusers.findIndex((user) => user.username === username);
     if (idx !== -1) {
       users.splice(idx, 1);
+      newusers.splice(newidx, 1);
       if (users.length) {
         // write back users
         subobj.subscribedUsernames = users;
+        subobj.subscribedUsers = newusers;
         await subobj.save();
       } else {
         // remove subscription
