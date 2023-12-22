@@ -27,25 +27,6 @@ mongoose.connection.on("connected", async () => {
   console.log("DB connection active (" + mongoDBConnect + ")");
 
   // TODO: possible migration?
-  // from subscription.subscribedUsernames to subscription.subscribedUsers
-  let subscriptions = await Subscription.find({});
-  for (let sub of subscriptions) {
-    let changed = false;
-    for (let username of sub.subscribedUsernames) {
-      if (!sub.subscribedUsers.find((user) => user.username === username)) {
-        changed = true;
-        sub.subscribedUsers.push({
-          username,
-          subscribedAt: Math.floor(Date.now() / 1000) - 14 * 24 * 60 * 60, // 2 weeks ago per default
-        });
-        console.log("migration necessary for", sub.ucid, username);
-      }
-    }
-    if (changed) {
-      await sub.save();
-      console.log("MIGRATION changes saved!");
-    }
-  }
 
   await getFeed();
   setInterval(getFeed, 30 * 60 * 1000);
@@ -431,7 +412,6 @@ async function addSubscription(channel, username) {
               subscription = new Subscription();
               subscription.ucid = ucid;
               subscription.channelName = channelName;
-              //subscription.subscribedUsernames = [username];
               subscription.subscribedUsers = [
                 {
                   username,
@@ -445,10 +425,6 @@ async function addSubscription(channel, username) {
                   (user) => user.username === username
                 )
               ) {
-                // subscription.subscribedUsernames = [
-                //   ...subscription.subscribedUsernames,
-                //   username,
-                // ];
                 subscription.subscribedUsers = [
                   ...subscription.subscribedUsers,
                   {
@@ -472,7 +448,6 @@ async function addSubscription(channel, username) {
         subscription = new Subscription();
         subscription.ucid = ucid;
         subscription.channelName = channelName;
-        //subscription.subscribedUsernames = [username];
         subscription.subscribedUsers = [
           {
             username,
@@ -486,10 +461,6 @@ async function addSubscription(channel, username) {
       if (
         !subscription.subscribedUsers.find((user) => user.username === username)
       ) {
-        // subscription.subscribedUsernames = [
-        //   ...subscription.subscribedUsernames,
-        //   username,
-        // ];
         subscription.subscribedUsers = [
           ...subscription.subscribedUsers,
           {
@@ -554,16 +525,12 @@ async function removeSubscription(ucid, username) {
   // if it was the last user, remove subscription and unsubscribe on invidious
 
   if (subobj) {
-    //let users = subobj.subscribedUsernames;
     let newusers = subobj.subscribedUsers;
-    //let idx = users.indexOf(username);
     let newidx = newusers.findIndex((user) => user.username === username);
     if (newidx !== -1) {
-      //users.splice(idx, 1);
       newusers.splice(newidx, 1);
       if (newusers.length) {
         // write back users
-        //subobj.subscribedUsernames = users;
         subobj.subscribedUsers = newusers;
         await subobj.save();
       } else {

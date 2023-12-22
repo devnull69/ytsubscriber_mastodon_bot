@@ -10,7 +10,6 @@ const subscriptionSchema = new mongoose.Schema(
     ucid: { type: String, required: true, unique: true },
     channelName: String,
     subscribedUsers: [subscribedUserSchema],
-    subscribedUsernames: [String],
   },
   { collection: "subscriptions" }
 );
