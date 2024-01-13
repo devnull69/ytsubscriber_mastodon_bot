@@ -170,6 +170,29 @@ async function getNewConversations() {
           }
           console.log("Sent instance config response to", sender);
           break;
+        case "setfixedtoinstance":
+          console.log(
+            "SETFIXEDTOINSTANCE config command received from",
+            sender,
+            "change to",
+            messageParts[1]
+          );
+          if (sender === "devnull69@ruhr.social") {
+            // only authorized admin user!
+            console.log(sender, "is authorized to perform this action!");
+            let resultat = await changeFixedInstance(messageParts[1]);
+            let finalMessage = "Successfully set fixed instance to";
+            if (resultat) finalMessage = "Failed setting fixed instance to";
+
+            mastodonInstance.post("statuses", {
+              status: `@${sender} ${finalMessage} ${messageParts[1]}`,
+              in_reply_to_id: origStatusId,
+              visibility: "direct",
+            });
+          } else {
+            console.log(sender, "is NOT authorized to perform this action!");
+          }
+          break;
         default:
           console.log("UNKNOWN COMMAND received from", sender);
       }
@@ -210,6 +233,9 @@ async function sendMessageToSubscribers(video, metadata) {
         let apiJson = await apiResponse.json();
         let rndIdx = Math.floor(Math.random() * 20);
         instance = apiJson[rndIdx][0];
+        break;
+      case "fixed":
+        instance = metadata.fixedInstance ?? invidiousInstance;
         break;
       default:
         instance = invidiousInstance;
@@ -577,6 +603,17 @@ async function changeInstance(instance, username) {
     default:
       return 99;
   }
+
+  return 0;
+}
+
+async function changeFixedInstance(instance) {
+  let metadata = await Metadata.findOne({});
+
+  if (!metadata) return 99;
+
+  metadata.fixedInstance = instance;
+  await metadata.save();
 
   return 0;
 }
