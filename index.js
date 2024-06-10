@@ -193,6 +193,24 @@ async function getNewConversations() {
             console.log(sender, "is NOT authorized to perform this action!");
           }
           break;
+        case "resend":
+          let count = messageParts[1]
+            ? Number(messageParts[1]) > 10
+              ? 10
+              : Number(messageParts[1])
+            : 3;
+          console.log(
+            "RESEND config command received from",
+            sender,
+            "for number of messages #",
+            count
+          );
+          let latest = await getVideosFromFeed(count * 3);
+
+          let metadata = await Metadata.findOne({});
+
+          await checkAndResendMessage(latest, metadata, sender, count);
+          break;
         default:
           console.log("UNKNOWN COMMAND received from", sender);
       }
@@ -212,6 +230,8 @@ async function sendMessageToSubscribers(video, metadata) {
   let subscription = await Subscription.findOne({
     ucid: video.authorId,
   });
+
+  if (!subscription) return;
 
   for (let subscribed of subscription.subscribedUsers) {
     let subscribedUsername = subscribed.username;
@@ -251,15 +271,64 @@ async function sendMessageToSubscribers(video, metadata) {
   }
 }
 
-async function getFeed() {
-  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
-  console.log("Grabbing feed from Invidious ....");
-  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+async function checkAndResendMessage(
+  allVideos,
+  metadata,
+  username,
+  resendCount
+) {
+  let totalResent = 0;
+  let idx = 0;
 
-  //let currentTimestampInSec = Math.floor(Date.now() / 1000);
+  while (totalResent < resendCount && idx < allVideos.length) {
+    let video = allVideos[idx];
+    let subscription = await Subscription.findOne({
+      ucid: video.authorId,
+    });
 
+    if (subscription) {
+      if (
+        subscription.subscribedUsers.find((user) => user.username === username)
+      ) {
+        let subscribedUser = await User.findOne({
+          username,
+        });
+
+        let instance = invidiousInstance;
+
+        switch (subscribedUser.instance) {
+          case "redirect":
+            instance = "redirect.invidious.io";
+            break;
+          case "random":
+            let apiResponse = await fetch(
+              "https://api.invidious.io/instances.json?sort_by=type,health"
+            );
+            let apiJson = await apiResponse.json();
+            let rndIdx = Math.floor(Math.random() * 20);
+            instance = apiJson[rndIdx][0];
+            break;
+          case "fixed":
+            instance = metadata.fixedInstance ?? invidiousInstance;
+            break;
+          default:
+            instance = invidiousInstance;
+        }
+        mastodonInstance.post("statuses", {
+          status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
+          visibility: "direct",
+        });
+        console.log("Sent new video message to", username);
+        totalResent++;
+      }
+    }
+    idx++;
+  }
+}
+
+async function getVideosFromFeed(count) {
   let response = await fetch(
-    `https://${invidiousInstance}/${invidiousFeedEndpoint}?max_results=1000`,
+    `https://${invidiousInstance}/${invidiousFeedEndpoint}?max_results=${count}`,
     {
       headers: {
         Authorization: `Bearer ${invidiousToken}`,
@@ -270,55 +339,28 @@ async function getFeed() {
   console.log(responseData.notifications.length, "Notifications found in feed");
   console.log(responseData.videos.length, "Videos found in feed");
 
-  let allVideos = [...responseData.notifications, ...responseData.videos];
+  let result = [...responseData.notifications, ...responseData.videos];
 
   // sort notifications together with videos descending from published time
-  allVideos.sort((a, b) => {
+  result.sort((a, b) => {
     if (a.published > b.published) return -1;
     if (a.published < b.published) return 1;
     return 0;
   });
 
-  //  for (let i = 0; i < 10; i++) {
-  //     console.log(allVideos[i].published, allVideos[i].title);
-  //  }
+  return result;
+}
+
+async function getFeed() {
+  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+  console.log("Grabbing feed from Invidious ....");
+  console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
+
+  //let currentTimestampInSec = Math.floor(Date.now() / 1000);
+
+  let allVideos = await getVideosFromFeed(1000);
 
   let metadata = await Metadata.findOne({});
-
-  // metadata.lasttwentytest = [
-  //   "nJg4dOO2P-E",
-  //   "Wksz1DnJ2VM",
-  //   "4QgcZzpJK2s",
-  //   "D730YRUqbKQ",
-  //   "rXd_eLPMv1U",
-  //   "JOaW9NQd1lI",
-  //   "EyDV5XLfagg",
-  //   "vpAXHtPK8nA",
-  //   "KV8U1cCo7UA",
-  //   "qU1EW4ED-QU",
-  //   "UBkWHimASgI",
-  //   "hUp3lVKrWt8",
-  //   "HP4ObKlCe6w",
-  //   "x5AvRLp-RsU",
-  //   "5jUYkDDRALg",
-  //   "lQlt07xS7pk",
-  //   "GqbaQKIdi3c",
-  //   "psGA9Ovw2r4",
-  //   "L6btUQ8mDZo",
-  //   "TsYeBS6v4r8",
-  // ];
-
-  // let difference = false;
-  // for (let lasttwenty of metadata.lasttwentytest) {
-  //   if (!metadata.lasttwenty.includes(lasttwenty)) {
-  //     difference = true;
-  //     break;
-  //   }
-  // }
-  // if (difference) {
-  //   metadata.lasttwenty = metadata.lasttwentytest;
-  //   console.log("overwritten lasttwenty on server");
-  // }
 
   console.log("last checked video", allVideos[0].published);
 
