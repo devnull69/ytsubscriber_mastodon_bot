@@ -4,3 +4,4 @@ MASTODON_ACCESS_TOKEN=uiwezhjhsbdfjhgsuewsj
 MASTODON_BOT_INSTANCE=whatever.social
 MONGODB_CONNECT=mongodb+src:.......................................
 YOUTUBE_API_KEY=sdfkshdkfshkdfkshfkshkfhskdhfksdfk
+RUN_AS_JOB=false
