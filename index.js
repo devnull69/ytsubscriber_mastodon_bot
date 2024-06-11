@@ -28,17 +28,19 @@ mongoose.connect(mongoDBConnect);
 mongoose.connection.on("connected", async () => {
   console.log("DB connection active (" + mongoDBConnect + ")");
 
-  // TODO: possible migration?
-
   await getFeed();
-  //setInterval(getFeed, 30 * 60 * 1000);
 
   await getNewConversations();
-  //setInterval(getNewConversations, 60 * 1000);
-  await mongoose.disconnect();
 
-  let totaltime = Date.now() - starttime;
-  console.log("TIME:", totaltime, "ms");
+  if (process.env.RUN_AS_JOB !== "true") {
+    setInterval(getFeed, 30 * 60 * 1000);
+    setInterval(getNewConversations, 60 * 1000);
+  } else {
+    await mongoose.disconnect();
+
+    let totaltime = Date.now() - starttime;
+    console.log("TIME:", totaltime, "ms");
+  }
 });
 
 mongoose.connection.on("error", (err) => {
