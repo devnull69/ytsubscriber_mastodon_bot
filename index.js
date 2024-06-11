@@ -7,6 +7,8 @@ import { Metadata } from "./model/metadata.js";
 
 import "dotenv/config";
 
+let starttime = Date.now();
+
 const invidiousInstance = process.env.INVIDIOUS_INSTANCE;
 
 const invidiousFeedEndpoint = "api/v1/auth/feed";
@@ -29,10 +31,15 @@ mongoose.connection.on("connected", async () => {
   // TODO: possible migration?
 
   await getFeed();
-  setInterval(getFeed, 30 * 60 * 1000);
+  //setInterval(getFeed, 30 * 60 * 1000);
 
   await getNewConversations();
-  setInterval(getNewConversations, 60 * 1000);
+  //setInterval(getNewConversations, 60 * 1000);
+  let totaltime = Date.now() - starttime;
+
+  await mongoose.disconnect();
+
+  console.log("TIME:", totaltime, "ms");
 });
 
 mongoose.connection.on("error", (err) => {
@@ -40,6 +47,7 @@ mongoose.connection.on("error", (err) => {
 });
 
 async function getNewConversations() {
+  let starttime = Date.now();
   console.log("-----------------------------------------------");
   console.log("checking incoming Mastodon direct messages ....");
   console.log("-----------------------------------------------");
@@ -220,6 +228,10 @@ async function getNewConversations() {
       mastodonInstance.post(`conversations/${id}/read`);
     }
   }
+  let totaltime = Date.now() - starttime;
+
+  console.log("TIME:", totaltime, "ms");
+
   console.log("-------DONE-------");
 }
 
@@ -352,6 +364,7 @@ async function getVideosFromFeed(count) {
 }
 
 async function getFeed() {
+  let starttime = Date.now();
   console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
   console.log("Grabbing feed from Invidious ....");
   console.log("xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
@@ -406,6 +419,9 @@ async function getFeed() {
   }
   metadata.lasttwenty = lasttwenty;
   await metadata.save();
+  let totaltime = Date.now() - starttime;
+
+  console.log("TIME:", totaltime, "ms");
 }
 
 async function addSubscription(channel, username) {
