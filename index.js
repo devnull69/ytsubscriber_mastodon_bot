@@ -18,7 +18,7 @@ const invidiousToken = process.env.INVIDIOUS_TOKEN;
 
 let mastodonInstance = new Mastodon({
   access_token: process.env.MASTODON_ACCESS_TOKEN,
-  timeout_ms: 10 * 1000, // optional HTTP request timeout to apply to all requests.
+  timeout_ms: 3 * 1000, // optional HTTP request timeout to apply to all requests.
   api_url: `https://${process.env.MASTODON_BOT_INSTANCE}/api/v1/`, // optional, defaults to https://mastodon.social/api/v1/
 });
 
@@ -53,181 +53,186 @@ async function getNewConversations() {
   console.log("checking incoming Mastodon direct messages ....");
   console.log("-----------------------------------------------");
 
-  let conversations = await mastodonInstance.get("conversations");
+  try {
+    let conversations = await mastodonInstance.get("conversations");
 
-  for (let conv of conversations.data) {
-    if (conv.unread) {
-      let dom = JSDOM.fragment(conv.last_status.content);
+    for (let conv of conversations.data) {
+      if (conv.unread) {
+        let dom = JSDOM.fragment(conv.last_status.content);
 
-      let contentParts = dom.textContent.split(" ");
-      contentParts.shift();
-      let messageText = contentParts.join(" ");
+        let contentParts = dom.textContent.split(" ");
+        contentParts.shift();
+        let messageText = contentParts.join(" ");
 
-      let sender = conv.last_status.account.acct;
-      console.log(sender, ":", messageText);
+        let sender = conv.last_status.account.acct;
+        console.log(sender, ":", messageText);
 
-      let messageParts = messageText.split(" ");
-      let command = messageParts[0];
-      let origStatusId = conv.last_status.id;
-      switch (command) {
-        case "ping":
-          console.log("PING received from", sender);
-          mastodonInstance.post("statuses", {
-            status: `@${sender} pong`,
-            in_reply_to_id: origStatusId,
-            visibility: "direct",
-          });
-          console.log("Sent pack PONG to", sender);
-          break;
-        case "subscribe":
-          console.log(
-            "SUBSCRIBE received from",
-            sender,
-            "subscribe to",
-            messageParts[1]
-          );
-          let result = await addSubscription(messageParts[1], sender);
-          console.log(result.status);
-          let responseToSender = `Successfully subscribed to\n\n${result.ucid} (${result.channelName})`;
-          if (result.status !== 204) {
-            responseToSender = `Unable to subscribe to ${messageParts[1]}.`;
-            if (result.status === 99) {
-              responseToSender += `\n\nThe Channel-ID-Service likely provided a fake ChannelID and I wasn't able to determine the correct one automatically.`;
-            }
-          }
-          mastodonInstance.post("statuses", {
-            status: `@${sender} ${responseToSender}`,
-            in_reply_to_id: origStatusId,
-            visibility: "direct",
-          });
-          console.log("Sent subscription response to", sender);
-          break;
-        case "unsubscribe":
-          console.log(
-            "UNSUBSCRIBE received from",
-            sender,
-            "unsubscribe from",
-            messageParts[1]
-          );
-          let result2 = await removeSubscription(messageParts[1], sender);
-          console.log("removeSubscription result:", result2);
-          let responseToSender2 = `Successfully unsubscribed from\n\n${messageParts[1]}`;
-          if (result2 !== 0) {
-            responseToSender2 = `Error unsubscribing from ${messageParts[1]}: ${result2}`;
-          }
-          mastodonInstance.post("statuses", {
-            status: `@${sender} ${responseToSender2}`,
-            in_reply_to_id: origStatusId,
-            visibility: "direct",
-          });
-          console.log("Sent unsubscription response to", sender);
-          break;
-        case "list":
-          console.log("LIST received from", sender);
-          let currentSubscriptions = await User.findOne({
-            username: sender,
-          })
-            .populate("subscribedTo")
-            .exec();
-          let responseMessage =
-            "You are currently not subscribed to any channel.";
-          if (
-            currentSubscriptions &&
-            currentSubscriptions.subscribedTo.length
-          ) {
-            responseMessage = `Your instance setting is: ${currentSubscriptions.instance}\n\nYou are currently subscribed to\n\n`;
-            for (let channel of currentSubscriptions.subscribedTo) {
-              // check if length>500 after adding next subscription, then split it up!
-              let checkmessage =
-                responseMessage + `${channel.ucid}\n${channel.channelName}\n\n`;
-              if (checkmessage.length > 490) {
-                mastodonInstance.post("statuses", {
-                  status: `@${sender} ${responseMessage}`,
-                  in_reply_to_id: origStatusId,
-                  visibility: "direct",
-                });
-                responseMessage = "You are also subscribed to\n\n";
+        let messageParts = messageText.split(" ");
+        let command = messageParts[0];
+        let origStatusId = conv.last_status.id;
+        switch (command) {
+          case "ping":
+            console.log("PING received from", sender);
+            mastodonInstance.post("statuses", {
+              status: `@${sender} pong`,
+              in_reply_to_id: origStatusId,
+              visibility: "direct",
+            });
+            console.log("Sent pack PONG to", sender);
+            break;
+          case "subscribe":
+            console.log(
+              "SUBSCRIBE received from",
+              sender,
+              "subscribe to",
+              messageParts[1]
+            );
+            let result = await addSubscription(messageParts[1], sender);
+            console.log(result.status);
+            let responseToSender = `Successfully subscribed to\n\n${result.ucid} (${result.channelName})`;
+            if (result.status !== 204) {
+              responseToSender = `Unable to subscribe to ${messageParts[1]}.`;
+              if (result.status === 99) {
+                responseToSender += `\n\nThe Channel-ID-Service likely provided a fake ChannelID and I wasn't able to determine the correct one automatically.`;
               }
-              responseMessage += `${channel.ucid}\n${channel.channelName}\n\n`;
             }
-          }
-          mastodonInstance.post("statuses", {
-            status: `@${sender} ${responseMessage}`,
-            in_reply_to_id: origStatusId,
-            visibility: "direct",
-          });
-          console.log("Sent subscription list to", sender);
-          break;
-        case "instance":
-          console.log(
-            "INSTANCE config command received from",
-            sender,
-            "change to",
-            messageParts[1]
-          );
-          if (messageParts[1]) {
-            let resultat = await changeInstance(messageParts[1], sender);
-
-            let finalMessage = "Successfully set instance to";
-            if (resultat) finalMessage = "Failed setting instance to";
-
             mastodonInstance.post("statuses", {
-              status: `@${sender} ${finalMessage} ${messageParts[1]}`,
+              status: `@${sender} ${responseToSender}`,
               in_reply_to_id: origStatusId,
               visibility: "direct",
             });
-          }
-          console.log("Sent instance config response to", sender);
-          break;
-        case "setfixedtoinstance":
-          console.log(
-            "SETFIXEDTOINSTANCE config command received from",
-            sender,
-            "change to",
-            messageParts[1]
-          );
-          if (sender === "devnull69@ruhr.social") {
-            // only authorized admin user!
-            console.log(sender, "is authorized to perform this action!");
-            let resultat = await changeFixedInstance(messageParts[1]);
-            let finalMessage = "Successfully set fixed instance to";
-            if (resultat) finalMessage = "Failed setting fixed instance to";
-
+            console.log("Sent subscription response to", sender);
+            break;
+          case "unsubscribe":
+            console.log(
+              "UNSUBSCRIBE received from",
+              sender,
+              "unsubscribe from",
+              messageParts[1]
+            );
+            let result2 = await removeSubscription(messageParts[1], sender);
+            console.log("removeSubscription result:", result2);
+            let responseToSender2 = `Successfully unsubscribed from\n\n${messageParts[1]}`;
+            if (result2 !== 0) {
+              responseToSender2 = `Error unsubscribing from ${messageParts[1]}: ${result2}`;
+            }
             mastodonInstance.post("statuses", {
-              status: `@${sender} ${finalMessage} ${messageParts[1]}`,
+              status: `@${sender} ${responseToSender2}`,
               in_reply_to_id: origStatusId,
               visibility: "direct",
             });
-          } else {
-            console.log(sender, "is NOT authorized to perform this action!");
-          }
-          break;
-        case "resend":
-          let count = messageParts[1]
-            ? Number(messageParts[1]) > 10
-              ? 10
-              : Number(messageParts[1])
-            : 3;
-          console.log(
-            "RESEND config command received from",
-            sender,
-            "for number of messages #",
-            count
-          );
-          let latest = await getVideosFromFeed(count * 3);
+            console.log("Sent unsubscription response to", sender);
+            break;
+          case "list":
+            console.log("LIST received from", sender);
+            let currentSubscriptions = await User.findOne({
+              username: sender,
+            })
+              .populate("subscribedTo")
+              .exec();
+            let responseMessage =
+              "You are currently not subscribed to any channel.";
+            if (
+              currentSubscriptions &&
+              currentSubscriptions.subscribedTo.length
+            ) {
+              responseMessage = `Your instance setting is: ${currentSubscriptions.instance}\n\nYou are currently subscribed to\n\n`;
+              for (let channel of currentSubscriptions.subscribedTo) {
+                // check if length>500 after adding next subscription, then split it up!
+                let checkmessage =
+                  responseMessage +
+                  `${channel.ucid}\n${channel.channelName}\n\n`;
+                if (checkmessage.length > 490) {
+                  mastodonInstance.post("statuses", {
+                    status: `@${sender} ${responseMessage}`,
+                    in_reply_to_id: origStatusId,
+                    visibility: "direct",
+                  });
+                  responseMessage = "You are also subscribed to\n\n";
+                }
+                responseMessage += `${channel.ucid}\n${channel.channelName}\n\n`;
+              }
+            }
+            mastodonInstance.post("statuses", {
+              status: `@${sender} ${responseMessage}`,
+              in_reply_to_id: origStatusId,
+              visibility: "direct",
+            });
+            console.log("Sent subscription list to", sender);
+            break;
+          case "instance":
+            console.log(
+              "INSTANCE config command received from",
+              sender,
+              "change to",
+              messageParts[1]
+            );
+            if (messageParts[1]) {
+              let resultat = await changeInstance(messageParts[1], sender);
 
-          let metadata = await Metadata.findOne({});
+              let finalMessage = "Successfully set instance to";
+              if (resultat) finalMessage = "Failed setting instance to";
 
-          await checkAndResendMessage(latest, metadata, sender, count);
-          break;
-        default:
-          console.log("UNKNOWN COMMAND received from", sender);
+              mastodonInstance.post("statuses", {
+                status: `@${sender} ${finalMessage} ${messageParts[1]}`,
+                in_reply_to_id: origStatusId,
+                visibility: "direct",
+              });
+            }
+            console.log("Sent instance config response to", sender);
+            break;
+          case "setfixedtoinstance":
+            console.log(
+              "SETFIXEDTOINSTANCE config command received from",
+              sender,
+              "change to",
+              messageParts[1]
+            );
+            if (sender === "devnull69@ruhr.social") {
+              // only authorized admin user!
+              console.log(sender, "is authorized to perform this action!");
+              let resultat = await changeFixedInstance(messageParts[1]);
+              let finalMessage = "Successfully set fixed instance to";
+              if (resultat) finalMessage = "Failed setting fixed instance to";
+
+              mastodonInstance.post("statuses", {
+                status: `@${sender} ${finalMessage} ${messageParts[1]}`,
+                in_reply_to_id: origStatusId,
+                visibility: "direct",
+              });
+            } else {
+              console.log(sender, "is NOT authorized to perform this action!");
+            }
+            break;
+          case "resend":
+            let count = messageParts[1]
+              ? Number(messageParts[1]) > 10
+                ? 10
+                : Number(messageParts[1])
+              : 3;
+            console.log(
+              "RESEND config command received from",
+              sender,
+              "for number of messages #",
+              count
+            );
+            let latest = await getVideosFromFeed(count * 3);
+
+            let metadata = await Metadata.findOne({});
+
+            await checkAndResendMessage(latest, metadata, sender, count);
+            break;
+          default:
+            console.log("UNKNOWN COMMAND received from", sender);
+        }
+
+        // set unread to false
+        let id = conversations.data[0].id;
+        mastodonInstance.post(`conversations/${id}/read`);
       }
-
-      // set unread to false
-      let id = conversations.data[0].id;
-      mastodonInstance.post(`conversations/${id}/read`);
     }
+  } catch (e) {
+    console.log("Timeout ... waiting for next cycle");
   }
   let totaltime = Date.now() - starttime;
 
