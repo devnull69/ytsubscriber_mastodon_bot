@@ -35,10 +35,9 @@ mongoose.connection.on("connected", async () => {
 
   await getNewConversations();
   //setInterval(getNewConversations, 60 * 1000);
-  let totaltime = Date.now() - starttime;
-
   await mongoose.disconnect();
 
+  let totaltime = Date.now() - starttime;
   console.log("TIME:", totaltime, "ms");
 });
 
