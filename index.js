@@ -222,6 +222,30 @@ async function getNewConversations() {
 
             await checkAndResendMessage(latest, metadata, sender, count);
             break;
+          case "resendall":
+            let countAll = messageParts[1]
+              ? Number(messageParts[1]) > 10
+                ? 10
+                : Number(messageParts[1])
+              : 3;
+            console.log(
+              "RESENDALL config command received from",
+              sender,
+              "for number of messages #",
+              countAll
+            );
+            if (sender === "devnull69@ruhr.social") {
+              // only authorized admin user!
+              console.log(sender, "is authorized to perform this action!");
+              let latest = await getVideosFromFeed(countAll + 3);
+
+              let metadata = await Metadata.findOne({});
+
+              await checkAndResendMessage(latest, metadata, "*", countAll);
+            } else {
+              console.log(sender, "is NOT authorized to perform this action!");
+            }
+            break;
           default:
             console.log("UNKNOWN COMMAND received from", sender);
         }
@@ -280,7 +304,7 @@ async function sendMessageToSubscribers(video, metadata) {
     }
 
     if (video.published >= subscribed.subscribedAt) {
-      mastodonInstance.post("statuses", {
+      await mastodonInstance.post("statuses", {
         status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
         visibility: "direct",
       });
@@ -305,39 +329,79 @@ async function checkAndResendMessage(
     });
 
     if (subscription) {
-      if (
-        subscription.subscribedUsers.find((user) => user.username === username)
-      ) {
-        let subscribedUser = await User.findOne({
-          username,
-        });
+      if (username === "*") {
+        // resend this video to all subscribed users
+        for (let user of subscription.subscribedUsers) {
+          let username = user.username;
+          let subscribedUser = await User.findOne({
+            username,
+          });
 
-        let instance = invidiousInstance;
+          let instance = invidiousInstance;
 
-        switch (subscribedUser.instance) {
-          case "redirect":
-            instance = "redirect.invidious.io";
-            break;
-          case "random":
-            let apiResponse = await fetch(
-              "https://api.invidious.io/instances.json?sort_by=type,health"
-            );
-            let apiJson = await apiResponse.json();
-            let rndIdx = Math.floor(Math.random() * 20);
-            instance = apiJson[rndIdx][0];
-            break;
-          case "fixed":
-            instance = metadata.fixedInstance ?? invidiousInstance;
-            break;
-          default:
-            instance = invidiousInstance;
+          switch (subscribedUser.instance) {
+            case "redirect":
+              instance = "redirect.invidious.io";
+              break;
+            case "random":
+              let apiResponse = await fetch(
+                "https://api.invidious.io/instances.json?sort_by=type,health"
+              );
+              let apiJson = await apiResponse.json();
+              let rndIdx = Math.floor(Math.random() * 20);
+              instance = apiJson[rndIdx][0];
+              break;
+            case "fixed":
+              instance = metadata.fixedInstance ?? invidiousInstance;
+              break;
+            default:
+              instance = invidiousInstance;
+          }
+          mastodonInstance.post("statuses", {
+            status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
+            visibility: "direct",
+          });
+          console.log("Sent new video message to", username);
         }
-        mastodonInstance.post("statuses", {
-          status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
-          visibility: "direct",
-        });
-        console.log("Sent new video message to", username);
         totalResent++;
+      } else {
+        // resend this video to selected user
+        if (
+          subscription.subscribedUsers.find(
+            (user) => user.username === username
+          )
+        ) {
+          let subscribedUser = await User.findOne({
+            username,
+          });
+
+          let instance = invidiousInstance;
+
+          switch (subscribedUser.instance) {
+            case "redirect":
+              instance = "redirect.invidious.io";
+              break;
+            case "random":
+              let apiResponse = await fetch(
+                "https://api.invidious.io/instances.json?sort_by=type,health"
+              );
+              let apiJson = await apiResponse.json();
+              let rndIdx = Math.floor(Math.random() * 20);
+              instance = apiJson[rndIdx][0];
+              break;
+            case "fixed":
+              instance = metadata.fixedInstance ?? invidiousInstance;
+              break;
+            default:
+              instance = invidiousInstance;
+          }
+          mastodonInstance.post("statuses", {
+            status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
+            visibility: "direct",
+          });
+          console.log("Sent new video message to", username);
+          totalResent++;
+        }
       }
     }
     idx++;
@@ -383,48 +447,52 @@ async function getFeed() {
 
   console.log("last checked video", allVideos[0].published);
 
-  //let lastchecked = currentTimestampInSec;
-  let lastchecked = allVideos[0].published;
-  if (metadata && metadata.lastchecked) {
-    lastchecked = metadata.lastchecked;
-  }
-
-  let lasttwenty = metadata.lasttwenty;
-
-  for (let video of allVideos) {
-    if (video.published > lastchecked) {
-      sendMessageToSubscribers(video, metadata);
-      lasttwenty.push(video.videoId);
+  try {
+    //let lastchecked = currentTimestampInSec;
+    let lastchecked = allVideos[0].published;
+    if (metadata && metadata.lastchecked) {
+      lastchecked = metadata.lastchecked;
     }
-  }
 
-  // check last twenty
-  for (let i = 0; i < 10; i++) {
-    // what
-    let video = allVideos[i];
-    if (!lasttwenty.includes(video.videoId)) {
-      sendMessageToSubscribers(video, metadata);
-      // mastodonInstance.post("statuses", {
-      //   status: `@devnull69@ruhr.social\n\nOut of order video detected, user was informed!\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
-      //   visibility: "direct",
-      // });
+    let lasttwenty = metadata.lasttwenty;
+
+    for (let video of allVideos) {
+      if (video.published > lastchecked) {
+        await sendMessageToSubscribers(video, metadata);
+        lasttwenty.push(video.videoId);
+      }
     }
-  }
 
-  // set last checked back to database
-  if (!metadata) {
-    metadata = new Metadata();
-    console.log("METADATA created!");
-  }
-  metadata.lastchecked = allVideos[0].published;
+    // check last twenty
+    for (let i = 0; i < 10; i++) {
+      // what
+      let video = allVideos[i];
+      if (!lasttwenty.includes(video.videoId)) {
+        await sendMessageToSubscribers(video, metadata);
+        // mastodonInstance.post("statuses", {
+        //   status: `@devnull69@ruhr.social\n\nOut of order video detected, user was informed!\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${invidiousInstance}/watch?v=${video.videoId}`,
+        //   visibility: "direct",
+        // });
+      }
+    }
 
-  //update last twenty
-  lasttwenty = [];
-  for (let i = 0; i < 20; i++) {
-    lasttwenty.push(allVideos[i].videoId);
+    // set last checked back to database
+    if (!metadata) {
+      metadata = new Metadata();
+      console.log("METADATA created!");
+    }
+    metadata.lastchecked = allVideos[0].published;
+
+    //update last twenty
+    lasttwenty = [];
+    for (let i = 0; i < 20; i++) {
+      lasttwenty.push(allVideos[i].videoId);
+    }
+    metadata.lasttwenty = lasttwenty;
+    await metadata.save();
+  } catch (e) {
+    console.log("Error occurred, maybe instance is down");
   }
-  metadata.lasttwenty = lasttwenty;
-  await metadata.save();
   let totaltime = Date.now() - starttime;
 
   console.log("TIME:", totaltime, "ms");
