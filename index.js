@@ -7,6 +7,11 @@ import { Metadata } from "./model/metadata.js";
 
 import "dotenv/config";
 
+const ANSI_BRIGHT = "\x1b[1m";
+const ANSI_RED = "\x1b[31m";
+const ANSI_GREEN = "\x1b[32m";
+const ANSI_RESET = "\x1b[0m";
+
 let starttime = Date.now();
 
 const invidiousInstance = process.env.INVIDIOUS_INSTANCE;
@@ -26,7 +31,9 @@ const mongoDBConnect = process.env.MONGODB_CONNECT;
 mongoose.connect(mongoDBConnect);
 
 mongoose.connection.on("connected", async () => {
-  console.log("DB connection active (" + mongoDBConnect + ")");
+  console.log(
+    ANSI_BRIGHT + "DB connection active (" + mongoDBConnect + ")" + ANSI_RESET
+  );
 
   await getFeed();
 
@@ -44,7 +51,7 @@ mongoose.connection.on("connected", async () => {
 });
 
 mongoose.connection.on("error", (err) => {
-  console.log("DB connection failed: " + err);
+  console.log(ANSI_RED + "DB connection failed: " + err + ANSI_RESET);
 });
 
 async function getNewConversations() {
@@ -78,7 +85,7 @@ async function getNewConversations() {
               in_reply_to_id: origStatusId,
               visibility: "direct",
             });
-            console.log("Sent pack PONG to", sender);
+            console.log(ANSI_BRIGHT + "Sent pack PONG to", sender, ANSI_RESET);
             break;
           case "subscribe":
             console.log(
@@ -101,7 +108,11 @@ async function getNewConversations() {
               in_reply_to_id: origStatusId,
               visibility: "direct",
             });
-            console.log("Sent subscription response to", sender);
+            console.log(
+              ANSI_BRIGHT + "Sent subscription response to",
+              sender,
+              ANSI_RESET
+            );
             break;
           case "unsubscribe":
             console.log(
@@ -121,7 +132,11 @@ async function getNewConversations() {
               in_reply_to_id: origStatusId,
               visibility: "direct",
             });
-            console.log("Sent unsubscription response to", sender);
+            console.log(
+              ANSI_BRIGHT + "Sent unsubscription response to",
+              sender,
+              ANSI_RESET
+            );
             break;
           case "list":
             console.log("LIST received from", sender);
@@ -158,7 +173,11 @@ async function getNewConversations() {
               in_reply_to_id: origStatusId,
               visibility: "direct",
             });
-            console.log("Sent subscription list to", sender);
+            console.log(
+              ANSI_BRIGHT + "Sent subscription list to",
+              sender,
+              ANSI_RESET
+            );
             break;
           case "instance":
             console.log(
@@ -179,7 +198,11 @@ async function getNewConversations() {
                 visibility: "direct",
               });
             }
-            console.log("Sent instance config response to", sender);
+            console.log(
+              ANSI_BRIGHT + "Sent instance config response to",
+              sender,
+              ANSI_RESET
+            );
             break;
           case "setfixedtoinstance":
             console.log(
@@ -190,7 +213,11 @@ async function getNewConversations() {
             );
             if (sender === "devnull69@ruhr.social") {
               // only authorized admin user!
-              console.log(sender, "is authorized to perform this action!");
+              console.log(
+                ANSI_BRIGHT,
+                sender,
+                "is authorized to perform this action!" + ANSI_RESET
+              );
               let resultat = await changeFixedInstance(messageParts[1]);
               let finalMessage = "Successfully set fixed instance to";
               if (resultat) finalMessage = "Failed setting fixed instance to";
@@ -201,7 +228,11 @@ async function getNewConversations() {
                 visibility: "direct",
               });
             } else {
-              console.log(sender, "is NOT authorized to perform this action!");
+              console.log(
+                ANSI_RED,
+                sender,
+                "is NOT authorized to perform this action!" + ANSI_RESET
+              );
             }
             break;
           case "resend":
@@ -236,18 +267,30 @@ async function getNewConversations() {
             );
             if (sender === "devnull69@ruhr.social") {
               // only authorized admin user!
-              console.log(sender, "is authorized to perform this action!");
+              console.log(
+                ANSI_BRIGHT,
+                sender,
+                "is authorized to perform this action!" + ANSI_RESET
+              );
               let latest = await getVideosFromFeed(countAll + 3);
 
               let metadata = await Metadata.findOne({});
 
               await checkAndResendMessage(latest, metadata, "*", countAll);
             } else {
-              console.log(sender, "is NOT authorized to perform this action!");
+              console.log(
+                ANSI_RED,
+                sender,
+                "is NOT authorized to perform this action!" + ANSI_RESET
+              );
             }
             break;
           default:
-            console.log("UNKNOWN COMMAND received from", sender);
+            console.log(
+              ANSI_RED + "UNKNOWN COMMAND received from",
+              sender,
+              ANSI_RESET
+            );
         }
 
         // set unread to false
@@ -256,13 +299,15 @@ async function getNewConversations() {
       }
     }
   } catch (e) {
-    console.log("Timeout ... waiting for next cycle");
+    console.log(
+      ANSI_RED + "Timeout" + ANSI_RESET + "... waiting for next cycle"
+    );
   }
   let totaltime = Date.now() - starttime;
 
   console.log("TIME:", totaltime, "ms");
 
-  console.log("-------DONE-------");
+  console.log(ANSI_GREEN + "-------DONE-------" + ANSI_RESET);
 }
 
 async function sendMessageToSubscribers(video, metadata) {
@@ -308,7 +353,11 @@ async function sendMessageToSubscribers(video, metadata) {
         status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
         visibility: "direct",
       });
-      console.log("Sent new video message to", subscribedUsername);
+      console.log(
+        ANSI_BRIGHT + "Sent new video message to",
+        subscribedUsername,
+        ANSI_RESET
+      );
     }
   }
 }
@@ -361,7 +410,11 @@ async function checkAndResendMessage(
             status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
             visibility: "direct",
           });
-          console.log("Sent new video message to", username);
+          console.log(
+            ANSI_BRIGHT + "Sent new video message to",
+            username,
+            ANSI_RESET
+          );
         }
         totalResent++;
       } else {
@@ -399,7 +452,11 @@ async function checkAndResendMessage(
             status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
             visibility: "direct",
           });
-          console.log("Sent new video message to", username);
+          console.log(
+            ANSI_BRIGHT + "Sent new video message to",
+            username,
+            ANSI_RESET
+          );
           totalResent++;
         }
       }
@@ -491,7 +548,9 @@ async function getFeed() {
     metadata.lasttwenty = lasttwenty;
     await metadata.save();
   } catch (e) {
-    console.log("Error occurred, maybe instance is down");
+    console.log(
+      ANSI_RED + "Error occurred, maybe instance is down" + ANSI_RESET
+    );
   }
   let totaltime = Date.now() - starttime;
 
@@ -499,7 +558,7 @@ async function getFeed() {
 }
 
 async function addSubscription(channel, username) {
-  console.log("Adding subscription to", channel);
+  console.log(ANSI_BRIGHT + "Adding subscription to", channel, ANSI_RESET);
 
   // Find out if channel is CHANNELID (starting with UC) or CHANNELNAME. If CHANNELNAME starts with @, remove it
   let ucid = channel;
@@ -694,7 +753,11 @@ async function removeSubscription(ucid, username) {
       } else {
         // remove subscription
         await Subscription.deleteOne({ ucid });
-        console.log("Removing invidious subscription to", ucid);
+        console.log(
+          ANSI_BRIGHT + "Removing invidious subscription to",
+          ucid,
+          ANSI_RESET
+        );
 
         let response = await fetch(
           `https://${invidiousInstance}/${invidiousSubscriptionsEndpoint}/${ucid}`,
