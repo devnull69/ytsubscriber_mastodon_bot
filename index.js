@@ -27,6 +27,13 @@ let mastodonInstance = new Mastodon({
   api_url: `https://${process.env.MASTODON_BOT_INSTANCE}/api/v1/`, // optional, defaults to https://mastodon.social/api/v1/
 });
 
+let mastodonInstance2 = new Mastodon({
+  // nrw.social backup
+  access_token: process.env.MASTODON_ACCESS_TOKEN2,
+  timeout_ms: 3 * 1000, // optional HTTP request timeout to apply to all requests.
+  api_url: `https://${process.env.MASTODON_BOT_INSTANCE2}/api/v1/`, // optional, defaults to https://mastodon.social/api/v1/
+});
+
 const mongoDBConnect = process.env.MONGODB_CONNECT;
 mongoose.connect(mongoDBConnect);
 
@@ -37,11 +44,19 @@ mongoose.connection.on("connected", async () => {
 
   await getFeed();
 
-  await getNewConversations();
+  await getNewConversations(mastodonInstance, "social.cologne");
+  await getNewConversations(mastodonInstance2, "nrw.social");
 
   if (process.env.RUN_AS_JOB !== "true") {
     setInterval(getFeed, 30 * 60 * 1000);
-    setInterval(getNewConversations, 60 * 1000);
+    setInterval(
+      () => getNewConversations(mastodonInstance, "social.cologne"),
+      60 * 1000
+    );
+    setInterval(
+      () => getNewConversations(mastodonInstance2, "nrw.social"),
+      62 * 1000
+    );
   } else {
     await mongoose.disconnect();
 
@@ -54,14 +69,14 @@ mongoose.connection.on("error", (err) => {
   console.log(ANSI_RED + "DB connection failed: " + err + ANSI_RESET);
 });
 
-async function getNewConversations() {
+async function getNewConversations(mastInstance, instName) {
   let starttime = Date.now();
-  console.log("-----------------------------------------------");
-  console.log("checking incoming Mastodon direct messages ....");
-  console.log("-----------------------------------------------");
+  console.log("--------------------------------------------------------------");
+  console.log("checking incoming Mastodon direct messages .... " + instName);
+  console.log("--------------------------------------------------------------");
 
   try {
-    let conversations = await mastodonInstance.get("conversations");
+    let conversations = await mastInstance.get("conversations");
 
     for (let conv of conversations.data) {
       if (conv.unread) {
@@ -80,7 +95,7 @@ async function getNewConversations() {
         switch (command) {
           case "ping":
             console.log("PING received from", sender);
-            mastodonInstance.post("statuses", {
+            mastInstance.post("statuses", {
               status: `@${sender} pong`,
               in_reply_to_id: origStatusId,
               visibility: "direct",
@@ -103,7 +118,7 @@ async function getNewConversations() {
                 responseToSender += `\n\nThe Channel-ID-Service likely provided a fake ChannelID and I wasn't able to determine the correct one automatically.`;
               }
             }
-            mastodonInstance.post("statuses", {
+            mastInstance.post("statuses", {
               status: `@${sender} ${responseToSender}`,
               in_reply_to_id: origStatusId,
               visibility: "direct",
@@ -127,7 +142,7 @@ async function getNewConversations() {
             if (result2 !== 0) {
               responseToSender2 = `Error unsubscribing from ${messageParts[1]}: ${result2}`;
             }
-            mastodonInstance.post("statuses", {
+            mastInstance.post("statuses", {
               status: `@${sender} ${responseToSender2}`,
               in_reply_to_id: origStatusId,
               visibility: "direct",
@@ -158,7 +173,7 @@ async function getNewConversations() {
                   responseMessage +
                   `${channel.ucid}\n${channel.channelName}\n\n`;
                 if (checkmessage.length > 490) {
-                  mastodonInstance.post("statuses", {
+                  mastInstance.post("statuses", {
                     status: `@${sender} ${responseMessage}`,
                     in_reply_to_id: origStatusId,
                     visibility: "direct",
@@ -168,7 +183,7 @@ async function getNewConversations() {
                 responseMessage += `${channel.ucid}\n${channel.channelName}\n\n`;
               }
             }
-            mastodonInstance.post("statuses", {
+            mastInstance.post("statuses", {
               status: `@${sender} ${responseMessage}`,
               in_reply_to_id: origStatusId,
               visibility: "direct",
@@ -192,7 +207,7 @@ async function getNewConversations() {
               let finalMessage = "Successfully set instance to";
               if (resultat) finalMessage = "Failed setting instance to";
 
-              mastodonInstance.post("statuses", {
+              mastInstance.post("statuses", {
                 status: `@${sender} ${finalMessage} ${messageParts[1]}`,
                 in_reply_to_id: origStatusId,
                 visibility: "direct",
@@ -222,7 +237,7 @@ async function getNewConversations() {
               let finalMessage = "Successfully set fixed instance to";
               if (resultat) finalMessage = "Failed setting fixed instance to";
 
-              mastodonInstance.post("statuses", {
+              mastInstance.post("statuses", {
                 status: `@${sender} ${finalMessage} ${messageParts[1]}`,
                 in_reply_to_id: origStatusId,
                 visibility: "direct",
@@ -295,7 +310,7 @@ async function getNewConversations() {
 
         // set unread to false
         let id = conversations.data[0].id;
-        mastodonInstance.post(`conversations/${id}/read`);
+        mastInstance.post(`conversations/${id}/read`);
       }
     }
   } catch (e) {
