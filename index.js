@@ -71,9 +71,17 @@ mongoose.connection.on("error", (err) => {
 
 async function getNewConversations(mastInstance, instName) {
   let starttime = Date.now();
-  console.log("--------------------------------------------------------------");
-  console.log("checking incoming Mastodon direct messages .... " + instName);
-  console.log("--------------------------------------------------------------");
+  console.log(
+    "-----------------------------------------------------------------------------------------------------"
+  );
+  console.log(
+    new Date().toLocaleString() +
+      ": checking incoming Mastodon direct messages .... " +
+      instName
+  );
+  console.log(
+    "-----------------------------------------------------------------------------------------------------"
+  );
 
   try {
     let conversations = await mastInstance.get("conversations");
@@ -364,7 +372,7 @@ async function sendMessageToSubscribers(video, metadata) {
     }
 
     if (video.published >= subscribed.subscribedAt) {
-      await mastodonInstance.post("statuses", {
+      await mastodonInstance2.post("statuses", {
         status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
         visibility: "direct",
       });
