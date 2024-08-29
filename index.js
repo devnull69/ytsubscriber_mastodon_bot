@@ -21,6 +21,10 @@ const invidiousSubscriptionsEndpoint = "api/v1/auth/subscriptions";
 const invidiousChannelEndpoint = "api/v1/channels/search";
 const invidiousToken = process.env.INVIDIOUS_TOKEN;
 
+let feedInterval = null;
+let conversationInterval1 = null;
+let conversationInterval2 = null;
+
 let mastodonInstance = new Mastodon({
   access_token: process.env.MASTODON_ACCESS_TOKEN,
   timeout_ms: 3 * 1000, // optional HTTP request timeout to apply to all requests.
@@ -42,21 +46,25 @@ mongoose.connection.on("connected", async () => {
     ANSI_BRIGHT + "DB connection active (" + mongoDBConnect + ")" + ANSI_RESET
   );
 
-  await getFeed();
+  if (!feedInterval) await getFeed();
 
-  await getNewConversations(mastodonInstance, "social.cologne");
-  await getNewConversations(mastodonInstance2, "nrw.social");
+  if (!conversationInterval1)
+    await getNewConversations(mastodonInstance, "social.cologne");
+  if (!conversationInterval2)
+    await getNewConversations(mastodonInstance2, "nrw.social");
 
   if (process.env.RUN_AS_JOB !== "true") {
-    setInterval(getFeed, 30 * 60 * 1000);
-    setInterval(
-      () => getNewConversations(mastodonInstance, "social.cologne"),
-      60 * 1000
-    );
-    setInterval(
-      () => getNewConversations(mastodonInstance2, "nrw.social"),
-      62 * 1000
-    );
+    if (!feedInterval) feedInterval = setInterval(getFeed, 30 * 60 * 1000);
+    if (!conversationInterval1)
+      conversationInterval1 = setInterval(
+        () => getNewConversations(mastodonInstance, "social.cologne"),
+        60 * 1000
+      );
+    if (!conversationInterval2)
+      conversationInterval2 = setInterval(
+        () => getNewConversations(mastodonInstance2, "nrw.social"),
+        62 * 1000
+      );
   } else {
     await mongoose.disconnect();
 
