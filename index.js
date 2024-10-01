@@ -579,8 +579,8 @@ async function getFeed() {
 
     //update last twenty
     lasttwenty = [];
+    console.log("Updating lasttwenty and saving....");
     for (let i = 0; i < 20; i++) {
-      console.log("Updating lasttwenty and saving....");
       lasttwenty.push(allVideos[i].videoId);
     }
     metadata.lasttwenty = lasttwenty;
