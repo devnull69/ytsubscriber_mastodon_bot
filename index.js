@@ -380,6 +380,11 @@ async function sendMessageToSubscribers(video, metadata) {
     }
 
     if (video.published >= subscribed.subscribedAt) {
+      console.log(
+        ANSI_BRIGHT + "Trying to send new video message to",
+        subscribedUsername,
+        ANSI_RESET
+      );
       await mastodonInstance2.post("statuses", {
         status: `@${subscribedUsername}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
         visibility: "direct",
@@ -547,6 +552,7 @@ async function getFeed() {
     for (let video of allVideos) {
       if (video.published > lastchecked) {
         await sendMessageToSubscribers(video, metadata);
+        console.log("Pushing new video to lasttwenty....");
         lasttwenty.push(video.videoId);
       }
     }
@@ -574,6 +580,7 @@ async function getFeed() {
     //update last twenty
     lasttwenty = [];
     for (let i = 0; i < 20; i++) {
+      console.log("Updating lasttwenty and saving....");
       lasttwenty.push(allVideos[i].videoId);
     }
     metadata.lasttwenty = lasttwenty;
