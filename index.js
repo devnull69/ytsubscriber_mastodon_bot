@@ -440,7 +440,7 @@ async function checkAndResendMessage(
               instance = metadata.fixedInstance ?? invidiousInstance;
               break;
             default:
-              instance = invidiousInstance;
+              instance = subscribedUser.instance;
           }
           mastodonInstance.post("statuses", {
             status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
@@ -482,7 +482,7 @@ async function checkAndResendMessage(
               instance = metadata.fixedInstance ?? invidiousInstance;
               break;
             default:
-              instance = invidiousInstance;
+              instance = subscribedUser.instance;
           }
           mastodonInstance.post("statuses", {
             status: `@${username}\n\nOne of your subscriptions posted a new video\n\nChannel: ${video.author}\nTitle: ${video.title}\nVideo: https://${instance}/watch?v=${video.videoId}`,
