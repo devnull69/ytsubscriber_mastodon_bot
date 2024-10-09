@@ -376,7 +376,7 @@ async function sendMessageToSubscribers(video, metadata) {
         instance = metadata.fixedInstance ?? invidiousInstance;
         break;
       default:
-        instance = invidiousInstance;
+        instance = subscribedUser.instance; // instance is directly given for specific user
     }
 
     if (video.published >= subscribed.subscribedAt) {
@@ -825,17 +825,9 @@ async function changeInstance(instance, username) {
 
   if (!user) return 99;
 
-  switch (instance) {
-    case "redirect":
-    case "random":
-    case "fixed":
-      user.instance = instance;
+  user.instance = instance;
 
-      await user.save();
-      break;
-    default:
-      return 99;
-  }
+  await user.save();
 
   return 0;
 }
