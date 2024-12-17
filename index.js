@@ -345,10 +345,12 @@ async function sendMessageToSubscribers(video, metadata) {
   // found video published since last checked
   // report video to all users subscribed to the channel
 
+  console.log("Sending message to subscribers....", video.videoId);
   let subscription = await Subscription.findOne({
     ucid: video.authorId,
   });
 
+  console.log("Subscriptions loaded, finding users....");
   if (!subscription) return;
 
   for (let subscribed of subscription.subscribedUsers) {
@@ -358,6 +360,10 @@ async function sendMessageToSubscribers(video, metadata) {
       username: subscribedUsername,
     });
 
+    console.log(
+      "User info retrieved, determining instance....",
+      subscribedUser.instance
+    );
     let instance = invidiousInstance;
 
     switch (subscribedUser.instance) {
@@ -369,7 +375,7 @@ async function sendMessageToSubscribers(video, metadata) {
           "https://api.invidious.io/instances.json?sort_by=type,health"
         );
         let apiJson = await apiResponse.json();
-        let rndIdx = Math.floor(Math.random() * 20);
+        let rndIdx = Math.floor(Math.random() * apiJson.length);
         instance = apiJson[rndIdx][0];
         break;
       case "fixed":
@@ -394,6 +400,7 @@ async function sendMessageToSubscribers(video, metadata) {
         subscribedUsername,
         ANSI_RESET
       );
+      await delay(1000);
     }
   }
 }
@@ -833,6 +840,14 @@ async function changeInstance(instance, username) {
   await user.save();
 
   return 0;
+}
+
+async function delay(ms) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve("DONE");
+    }, ms);
+  });
 }
 
 async function changeFixedInstance(instance) {
