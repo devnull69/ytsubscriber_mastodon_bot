@@ -507,6 +507,7 @@ async function getVideosFromFeed(count) {
     {
       headers: {
         Authorization: `Bearer ${invidiousToken}`,
+        "User-Agent": "PostmanRuntime/7.43.0",
       },
     }
   );
@@ -623,6 +624,7 @@ async function addSubscription(channel, username) {
       method: "POST",
       headers: {
         Authorization: `Bearer ${invidiousToken}`,
+        "User-Agent": "PostmanRuntime/7.43.0",
       },
     }
   );
@@ -803,6 +805,7 @@ async function removeSubscription(ucid, username) {
             method: "DELETE",
             headers: {
               Authorization: `Bearer ${invidiousToken}`,
+              "User-Agent": "PostmanRuntime/7.43.0",
             },
           }
         );
