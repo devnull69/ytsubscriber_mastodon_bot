@@ -371,12 +371,13 @@ async function sendMessageToSubscribers(video, metadata) {
         instance = "redirect.invidious.io";
         break;
       case "random":
-        let apiResponse = await fetch(
-          "https://api.invidious.io/instances.json?sort_by=type,health"
-        );
-        let apiJson = await apiResponse.json();
-        let rndIdx = Math.floor(Math.random() * apiJson.length);
-        instance = apiJson[rndIdx][0];
+        // let apiResponse = await fetch(
+        //   "https://api.invidious.io/instances.json?sort_by=type,health"
+        // );
+        // let apiJson = await apiResponse.json();
+        // let rndIdx = Math.floor(Math.random() * apiJson.length);
+        // instance = apiJson[rndIdx][0];
+        instance = metadata.fixedInstance ?? invidiousInstance;
         break;
       case "fixed":
         instance = metadata.fixedInstance ?? invidiousInstance;
